@@ -60,6 +60,7 @@ jobs:
         run: |
           node --check web/app.js
           node --check web/pyodide-worker.js
+          node --check scripts/live_browser_smoke.mjs
           node --check scripts/prepare-web.mjs
 
   deploy:

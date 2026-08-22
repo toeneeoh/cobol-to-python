@@ -11,3 +11,5 @@ opened at <http://localhost:8000>.
 The Pages workflow deploys successful `main` builds as the isolated project
 site at <https://toeneeoh.github.io/cobol-to-python/>. It does not modify the
 existing `toeneeoh.github.io` repository or its root site.
+
+See [docs/release.md](docs/release.md) for the verified v0.1 release status.
