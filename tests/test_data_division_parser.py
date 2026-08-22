@@ -133,8 +133,11 @@ def test_rejects_unsupported_level_numbers(level: str) -> None:
         ("01 NAME PIC X 1).", "'(' after picture type"),
         ("01 NAME PIC X(1.", "')' after picture length"),
         ("01 NAME PIC X(1)).", "declaration-ending '.'"),
-        ("01 NAME PIC X(1) VALUE.", "an integer or string literal"),
-        ("01 NAME PIC X(1) VALUE OTHER.", "an integer or string literal"),
+        ("01 NAME PIC X(1) VALUE.", "an integer, string, ZERO, or SPACES literal"),
+        (
+            "01 NAME PIC X(1) VALUE OTHER.",
+            "an integer, string, ZERO, or SPACES literal",
+        ),
         ("01 NAME PIC X(1)", "declaration-ending '.'"),
         ("01 NAME PIC X(1) PIC 9(1).", "duplicate PIC clause"),
         ("01 NAME PIC X(1) VALUE 1 VALUE 2.", "duplicate VALUE clause"),

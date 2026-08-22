@@ -1,4 +1,4 @@
-"""Tokenization for the documented COBOL v0.1 source format."""
+"""Tokenization for the documented COBOL v0.2 source format."""
 
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -11,25 +11,39 @@ class TokenKind(Enum):
     INTEGER = auto()
     STRING = auto()
 
+    ACCEPT = auto()
+    ADD = auto()
+    AND = auto()
     COMPUTE = auto()
     DATA = auto()
     DISPLAY = auto()
     DIVISION = auto()
     ELSE = auto()
+    END_PERFORM = auto()
     END_IF = auto()
     IDENTIFICATION = auto()
     IF = auto()
+    FROM = auto()
     MOVE = auto()
+    NOT = auto()
+    OR = auto()
     PIC = auto()
     PROCEDURE = auto()
+    PERFORM = auto()
     PROGRAM_ID = auto()
     RUN = auto()
     SECTION = auto()
     STOP = auto()
+    SPACE = auto()
+    SPACES = auto()
+    SUBTRACT = auto()
+    TIMES = auto()
     TO = auto()
     VALUE = auto()
     WORKING_STORAGE = auto()
     X = auto()
+    ZERO = auto()
+    ZEROS = auto()
 
     PERIOD = auto()
     LEFT_PAREN = auto()
@@ -84,25 +98,39 @@ class LexerError(ValueError):
 
 
 _KEYWORDS: dict[str, TokenKind] = {
+    "ACCEPT": TokenKind.ACCEPT,
+    "ADD": TokenKind.ADD,
+    "AND": TokenKind.AND,
     "COMPUTE": TokenKind.COMPUTE,
     "DATA": TokenKind.DATA,
     "DISPLAY": TokenKind.DISPLAY,
     "DIVISION": TokenKind.DIVISION,
     "ELSE": TokenKind.ELSE,
+    "END-PERFORM": TokenKind.END_PERFORM,
+    "FROM": TokenKind.FROM,
     "END-IF": TokenKind.END_IF,
     "IDENTIFICATION": TokenKind.IDENTIFICATION,
     "IF": TokenKind.IF,
     "MOVE": TokenKind.MOVE,
+    "NOT": TokenKind.NOT,
+    "OR": TokenKind.OR,
     "PIC": TokenKind.PIC,
     "PROCEDURE": TokenKind.PROCEDURE,
+    "PERFORM": TokenKind.PERFORM,
     "PROGRAM-ID": TokenKind.PROGRAM_ID,
     "RUN": TokenKind.RUN,
     "SECTION": TokenKind.SECTION,
     "STOP": TokenKind.STOP,
+    "SPACE": TokenKind.SPACE,
+    "SPACES": TokenKind.SPACES,
+    "SUBTRACT": TokenKind.SUBTRACT,
+    "TIMES": TokenKind.TIMES,
     "TO": TokenKind.TO,
     "VALUE": TokenKind.VALUE,
     "WORKING-STORAGE": TokenKind.WORKING_STORAGE,
     "X": TokenKind.X,
+    "ZERO": TokenKind.ZERO,
+    "ZEROS": TokenKind.ZEROS,
 }
 
 _SINGLE_CHARACTER_TOKENS: dict[str, TokenKind] = {

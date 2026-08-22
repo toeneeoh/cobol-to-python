@@ -1,4 +1,4 @@
-"""Semantic analysis for parsed COBOL v0.1 programs."""
+"""Semantic analysis for parsed COBOL v0.2 programs."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -6,9 +6,12 @@ from enum import Enum
 from types import MappingProxyType
 
 from cobol_to_python.ast import (
+    AcceptStatement,
+    AddStatement,
     ArithmeticExpression,
     Comparison,
     ComputeStatement,
+    Condition,
     DataDeclaration,
     DisplayStatement,
     Expression,
@@ -16,12 +19,18 @@ from cobol_to_python.ast import (
     IdentifierExpression,
     IfStatement,
     IntegerLiteral,
+    LogicalCondition,
     MoveStatement,
+    NotCondition,
+    PerformTimesStatement,
     Pic9,
     Program,
+    SpacesLiteral,
     Statement,
     StringLiteral,
+    SubtractStatement,
     UnaryExpression,
+    ZeroLiteral,
 )
 from cobol_to_python.lexer import SourceSpan
 
@@ -117,7 +126,10 @@ class _Analyzer:
                         "exceeds picture width",
                         initial_value.span,
                     )
-            elif len(str(initial_value.value)) > declaration.picture.length:
+            elif (
+                isinstance(initial_value, IntegerLiteral)
+                and len(str(initial_value.value)) > declaration.picture.length
+            ):
                 raise SemanticError(
                     f"Initial value for {symbol.name.spelling!r} exceeds picture width",
                     initial_value.span,
@@ -125,10 +137,15 @@ class _Analyzer:
 
     def _check_statement(self, statement: Statement) -> None:
         if isinstance(statement, DisplayStatement):
-            self._expression_category(statement.value)
+            for value in statement.values:
+                self._expression_category(value)
         elif isinstance(statement, MoveStatement):
-            source_category = self._expression_category(statement.value)
             target = self._resolve(statement.target)
+            source_category = (
+                DataCategory.ALPHANUMERIC
+                if isinstance(statement.value, SpacesLiteral)
+                else self._expression_category(statement.value)
+            )
             if source_category is not target.category:
                 raise SemanticError(
                     f"Cannot move {source_category.value} value to "
@@ -143,13 +160,38 @@ class _Analyzer:
                     statement.target.span,
                 )
             self._arithmetic_category(statement.expression)
+        elif isinstance(statement, AcceptStatement):
+            self._resolve(statement.target)
+        elif isinstance(statement, (AddStatement, SubtractStatement)):
+            target = self._resolve(statement.target)
+            if target.category is not DataCategory.NUMERIC:
+                raise SemanticError(
+                    f"{type(statement).__name__.removesuffix('Statement').upper()} "
+                    "target "
+                    f"{target.name.spelling!r} must be numeric",
+                    statement.target.span,
+                )
+            self._arithmetic_category(statement.expression)
         elif isinstance(statement, IfStatement):
-            self._check_comparison(statement.condition)
+            self._check_condition(statement.condition)
             for child in statement.then_body:
                 self._check_statement(child)
             if statement.else_body is not None:
                 for child in statement.else_body:
                     self._check_statement(child)
+        elif isinstance(statement, PerformTimesStatement):
+            self._arithmetic_category(statement.count)
+            for child in statement.body:
+                self._check_statement(child)
+
+    def _check_condition(self, condition: Condition) -> None:
+        if isinstance(condition, Comparison):
+            self._check_comparison(condition)
+        elif isinstance(condition, NotCondition):
+            self._check_condition(condition.operand)
+        elif isinstance(condition, LogicalCondition):
+            self._check_condition(condition.left)
+            self._check_condition(condition.right)
 
     def _check_comparison(self, comparison: Comparison) -> None:
         left = self._expression_category(comparison.left)
@@ -161,6 +203,12 @@ class _Analyzer:
             )
 
     def _expression_category(self, expression: Expression) -> DataCategory:
+        if isinstance(expression, SpacesLiteral):
+            raise SemanticError(
+                "SPACE or SPACES is valid only for alphanumeric assignment "
+                "or initialization",
+                expression.span,
+            )
         if isinstance(expression, StringLiteral):
             return DataCategory.ALPHANUMERIC
         if isinstance(expression, IdentifierExpression):
@@ -168,7 +216,7 @@ class _Analyzer:
         return self._arithmetic_category(expression)
 
     def _arithmetic_category(self, expression: ArithmeticExpression) -> DataCategory:
-        if isinstance(expression, IntegerLiteral):
+        if isinstance(expression, (IntegerLiteral, ZeroLiteral)):
             return DataCategory.NUMERIC
         if isinstance(expression, IdentifierExpression):
             symbol = self._resolve(expression.name)
@@ -200,13 +248,15 @@ def _declaration_category(declaration: DataDeclaration) -> DataCategory:
     return DataCategory.ALPHANUMERIC
 
 
-def _literal_category(literal: IntegerLiteral | StringLiteral) -> DataCategory:
-    if isinstance(literal, IntegerLiteral):
+def _literal_category(
+    literal: IntegerLiteral | StringLiteral | ZeroLiteral | SpacesLiteral,
+) -> DataCategory:
+    if isinstance(literal, (IntegerLiteral, ZeroLiteral)):
         return DataCategory.NUMERIC
     return DataCategory.ALPHANUMERIC
 
 
 def analyze_program(program: Program) -> AnalyzedProgram:
-    """Resolve and validate one parsed COBOL v0.1 program."""
+    """Resolve and validate one parsed COBOL v0.2 program."""
 
     return _Analyzer(program).analyze()

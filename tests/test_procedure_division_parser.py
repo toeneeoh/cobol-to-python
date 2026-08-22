@@ -52,7 +52,7 @@ def test_display_accepts_every_documented_operand_form(
     statement = parse_body(f"DISPLAY {operand}.").statements[0]
 
     assert isinstance(statement, DisplayStatement)
-    assert isinstance(statement.value, node_type)
+    assert isinstance(statement.values[0], node_type)
 
 
 @pytest.mark.parametrize("source", ['"Ada"', "SOURCE-NAME", "12"])
@@ -201,9 +201,9 @@ def test_rejects_missing_operands_targets_and_condition_parts(
         ('IF A = 1 DISPLAY "A".', "'ELSE' or 'END-IF'"),
         ('IF A = 1 DISPLAY "A". ELSE END-IF.', "a statement in the IF branch"),
         ("IF A = 1 END-IF.", "a statement in the IF branch"),
-        ('ELSE DISPLAY "A".', "a DISPLAY, MOVE, COMPUTE, or IF"),
-        ('END-IF. DISPLAY "A".', "a DISPLAY, MOVE, COMPUTE, or IF"),
-        ('IF A = 1 DISPLAY "A". END-IF. END-IF.', "a DISPLAY, MOVE, COMPUTE, or IF"),
+        ('ELSE DISPLAY "A".', "ACCEPT, ADD, SUBTRACT, DISPLAY"),
+        ('END-IF. DISPLAY "A".', "ACCEPT, ADD, SUBTRACT, DISPLAY"),
+        ('IF A = 1 DISPLAY "A". END-IF. END-IF.', "ACCEPT, ADD, SUBTRACT, DISPLAY"),
     ],
 )
 def test_rejects_malformed_if_terminators(body: str, expected: str) -> None:
@@ -218,8 +218,8 @@ def test_rejects_malformed_if_terminators(body: str, expected: str) -> None:
     ("body", "expected"),
     [
         ('DISPLAY "A" STOP RUN.', "'.' after DISPLAY operand"),
-        ('DISPLAY "A".. STOP RUN.', "a DISPLAY, MOVE, COMPUTE, or IF"),
-        ("PERFORM WORK. STOP RUN.", "a DISPLAY, MOVE, COMPUTE, or IF"),
+        ('DISPLAY "A".. STOP RUN.', "ACCEPT, ADD, SUBTRACT, DISPLAY"),
+        ("PERFORM WORK. STOP RUN.", "'TIMES' after PERFORM count"),
         ("STOP.", "'RUN' after STOP"),
         ("STOP RUN", "'.' after STOP RUN"),
         ("STOP RUN. DISPLAY 1.", "end of input after STOP RUN"),

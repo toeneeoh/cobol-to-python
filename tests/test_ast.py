@@ -96,7 +96,7 @@ def test_comparison_and_simple_statement_nodes() -> None:
         reference, ComparisonOperator.GREATER_EQUAL, integer, node_span
     )
 
-    assert DisplayStatement(reference, node_span).value is reference
+    assert DisplayStatement((reference,), node_span).values == (reference,)
     assert MoveStatement(integer, target, node_span).target is target
     assert ComputeStatement(target, integer, node_span).expression is integer
     assert comparison.operator is ComparisonOperator.GREATER_EQUAL
@@ -110,7 +110,7 @@ def test_nested_conditionals_and_optional_else_branches() -> None:
         IntegerLiteral(1, node_span),
         node_span,
     )
-    display = DisplayStatement(StringLiteral("YES", node_span), node_span)
+    display = DisplayStatement((StringLiteral("YES", node_span),), node_span)
     inner = IfStatement(condition, (display,), node_span, None, None, node_span)
     outer = IfStatement(
         condition,
@@ -131,7 +131,7 @@ def test_complete_program_and_stop_run() -> None:
     name = Identifier("Example", span(20, 27))
     identification = ProgramIdentification(name, span(0, 28))
     declaration = DataDeclaration(name, PicX(10, span()), None, span())
-    statement = DisplayStatement(IdentifierExpression(name, span()), span())
+    statement = DisplayStatement((IdentifierExpression(name, span()),), span())
     stop_run = StopRun(span(90, 99))
     data_division = DataDivision((declaration,), node_span)
     procedure_division = ProcedureDivision((statement,), stop_run, node_span)

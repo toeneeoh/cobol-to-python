@@ -1,4 +1,4 @@
-"""Typed abstract syntax tree for the documented COBOL v0.1 subset."""
+"""Typed abstract syntax tree for the documented COBOL v0.2 subset."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -57,6 +57,20 @@ class StringLiteral:
 
 
 @dataclass(frozen=True, slots=True)
+class ZeroLiteral:
+    """The numeric figurative constants ``ZERO`` and ``ZEROS``."""
+
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
+class SpacesLiteral:
+    """The alphanumeric figurative constants ``SPACE`` and ``SPACES``."""
+
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
 class IdentifierExpression:
     """A reference to a data item whose category is resolved later."""
 
@@ -110,11 +124,15 @@ class BinaryExpression:
     span: SourceSpan
 
 
-Literal: TypeAlias = IntegerLiteral | StringLiteral
+Literal: TypeAlias = IntegerLiteral | StringLiteral | ZeroLiteral | SpacesLiteral
 ArithmeticExpression: TypeAlias = (
-    IntegerLiteral | IdentifierExpression | UnaryExpression | BinaryExpression
+    IntegerLiteral
+    | ZeroLiteral
+    | IdentifierExpression
+    | UnaryExpression
+    | BinaryExpression
 )
-Expression: TypeAlias = ArithmeticExpression | StringLiteral
+Expression: TypeAlias = ArithmeticExpression | StringLiteral | SpacesLiteral
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,11 +163,39 @@ class Comparison:
     span: SourceSpan
 
 
+class LogicalOperator(Enum):
+    """Binary condition operators in increasing source-level composition."""
+
+    AND = "AND"
+    OR = "OR"
+
+
+@dataclass(frozen=True, slots=True)
+class NotCondition:
+    """A negated condition."""
+
+    operand: "Condition"
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
+class LogicalCondition:
+    """Two conditions joined by ``AND`` or ``OR``."""
+
+    left: "Condition"
+    operator: LogicalOperator
+    right: "Condition"
+    span: SourceSpan
+
+
+Condition: TypeAlias = Comparison | NotCondition | LogicalCondition
+
+
 @dataclass(frozen=True, slots=True)
 class DisplayStatement:
-    """A statement that displays one expression."""
+    """A statement that displays one or more expressions without separators."""
 
-    value: Expression
+    values: tuple[Expression, ...]
     span: SourceSpan
 
 
@@ -172,10 +218,36 @@ class ComputeStatement:
 
 
 @dataclass(frozen=True, slots=True)
+class AcceptStatement:
+    """Read one line of input into a data item."""
+
+    target: Identifier
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
+class AddStatement:
+    """Add an arithmetic value to a numeric data item."""
+
+    expression: ArithmeticExpression
+    target: Identifier
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
+class SubtractStatement:
+    """Subtract an arithmetic value from a numeric data item."""
+
+    expression: ArithmeticExpression
+    target: Identifier
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
 class IfStatement:
     """A conditional with a non-empty then branch and optional else branch."""
 
-    condition: Comparison
+    condition: Condition
     then_body: tuple["Statement", ...]
     then_span: SourceSpan
     else_body: tuple["Statement", ...] | None
@@ -183,7 +255,26 @@ class IfStatement:
     span: SourceSpan
 
 
-Statement: TypeAlias = DisplayStatement | MoveStatement | ComputeStatement | IfStatement
+@dataclass(frozen=True, slots=True)
+class PerformTimesStatement:
+    """Repeat a non-empty inline statement body a fixed number of times."""
+
+    count: ArithmeticExpression
+    body: tuple["Statement", ...]
+    body_span: SourceSpan
+    span: SourceSpan
+
+
+Statement: TypeAlias = (
+    DisplayStatement
+    | MoveStatement
+    | ComputeStatement
+    | AcceptStatement
+    | AddStatement
+    | SubtractStatement
+    | IfStatement
+    | PerformTimesStatement
+)
 
 
 @dataclass(frozen=True, slots=True)

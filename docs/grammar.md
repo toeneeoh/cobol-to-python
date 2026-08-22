@@ -1,191 +1,101 @@
-# COBOL v0.1 Grammar
+# COBOL v0.2 Grammar
 
-This document defines the lexical and syntactic grammar accepted by version
-0.1. The grammar is intentionally smaller and stricter than general COBOL.
+This is the complete lexical and syntactic contract for version 0.2. Anything
+not described here is unsupported.
 
-## Source format
+## Source and lexical rules
 
-- Source is UTF-8 and free-format only.
-- Fixed-column sequence areas, indicator columns, continuation rules, and
-  identification areas are unsupported.
-- Spaces, tabs, LF, and CRLF separate tokens.
-- Newlines are otherwise insignificant, except that they terminate comments.
-- A comment begins with `*>` and continues to the end of the physical line.
-- Keywords and identifiers are case-insensitive.
-- Periods are mandatory where shown in the grammar. In this subset, a period is
-  only a terminator; it does not implicitly close scopes.
+Source is UTF-8, free-format COBOL. Fixed columns and continuation rules are
+unsupported. Spaces, tabs, LF, and CRLF separate tokens; newlines otherwise
+have no significance. `*>` starts a comment through the physical line end.
 
-## Lexical rules
-
-Keywords are matched case-insensitively. The reserved keywords are:
+Keywords and identifiers are case-insensitive, while original spelling is
+preserved. Reserved keywords are:
 
 ```text
-COMPUTE DATA DISPLAY DIVISION ELSE END-IF IDENTIFICATION IF MOVE PIC
-PROCEDURE PROGRAM-ID RUN SECTION STOP TO VALUE WORKING-STORAGE X
+ACCEPT ADD AND COMPUTE DATA DISPLAY DIVISION ELSE END-IF END-PERFORM FROM
+IDENTIFICATION IF MOVE NOT OR PERFORM PIC PROCEDURE PROGRAM-ID RUN SECTION
+SPACE SPACES STOP SUBTRACT TIMES TO VALUE WORKING-STORAGE X ZERO ZEROS
 ```
 
-An identifier starts with an ASCII letter and may continue with ASCII letters,
-digits, or hyphens. It may not end with a hyphen, contain consecutive hyphens,
-or equal a reserved keyword. Identifier equality is case-insensitive.
+An identifier starts with an ASCII letter and continues with ASCII letters,
+digits, or hyphens. It cannot end in a hyphen, contain consecutive hyphens, or
+equal a keyword. Hyphens are scanned maximally: `A-B` is an identifier. Binary
+subtraction requires whitespace on both sides (`A - B`); unary minus may touch
+its operand. A digit-leading word is a lexical error.
 
-```ebnf
-identifier = letter, { letter | digit | identifier-hyphen } ;
-letter = "A" | "B" | ... | "Z" | "a" | "b" | ... | "z" ;
-digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
-identifier-hyphen = "-" ;
-```
-
-The prose restrictions on trailing and consecutive hyphens apply in addition
-to the simplified production above.
-
-Hyphens inside identifiers are scanned maximally, so `A-B` and `ITEM-1` are
-identifiers. Binary subtraction must have whitespace on both sides, as in
-`A - B`. Unary minus may directly precede its operand, as in `-7`, `-COUNT`, or
-`-(A + B)`. A hyphen attached to the end of an identifier or a pair of
-consecutive hyphens is a lexical error.
-
-Integer literals contain one or more ASCII digits. A sign is an operator, not
-part of an integer literal. A digit sequence immediately followed by a letter
-or hyphen is a malformed lexical unit rather than two tokens. A
-`positive-integer` has a value greater than zero.
-
-String literals begin and end with a double quote and cannot span physical
-lines. Two consecutive double quotes inside a string represent one literal
-double quote. For example, `"He said ""hello"""` contains `He said "hello"`.
-
-The punctuation and operator tokens are:
-
-```text
-. ( ) + - * / = <> < <= > >=
-```
-
-The lexer uses longest-match tokenization for `<>`, `<=`, and `>=`.
+Integers contain ASCII digits; signs are operators. Double-quoted strings
+cannot cross a line and escape a quote by doubling it. Operators and
+punctuation are `. ( ) + - * / = <> < <= > >=`, using longest match.
 
 ## EBNF
 
-Quoted words are case-insensitive keywords. Braces mean zero or more,
-brackets mean optional, and parentheses group grammar elements.
+Quoted words are case-insensitive keywords. Braces mean repetition and brackets
+mean optionality.
 
 ```ebnf
-program =
-    identification-division,
-    program-id-paragraph,
-    data-division,
-    working-storage-section,
-    procedure-division,
-    { statement },
-    stop-run,
-    EOF ;
+program = identification-division, program-id-paragraph, data-division,
+          working-storage-section, procedure-division,
+          { statement }, stop-run, EOF ;
+identification-division = "IDENTIFICATION", "DIVISION", "." ;
+program-id-paragraph = "PROGRAM-ID", ".", identifier, "." ;
+data-division = "DATA", "DIVISION", "." ;
+working-storage-section = "WORKING-STORAGE", "SECTION", ".",
+                          { data-declaration } ;
+data-declaration = "01", identifier, picture, [ value-clause ], "." ;
+picture = "PIC", ( "X" | "9" ), "(", positive-integer, ")" ;
+value-clause = "VALUE", literal ;
 
-identification-division =
-    "IDENTIFICATION", "DIVISION", "." ;
+procedure-division = "PROCEDURE", "DIVISION", "." ;
+statement = display | move | compute | accept | add | subtract | if | perform ;
+display = "DISPLAY", expression, { expression }, "." ;
+move = "MOVE", expression, "TO", identifier, "." ;
+compute = "COMPUTE", identifier, "=", arithmetic-expression, "." ;
+accept = "ACCEPT", identifier, "." ;
+add = "ADD", arithmetic-expression, "TO", identifier, "." ;
+subtract = "SUBTRACT", arithmetic-expression, "FROM", identifier, "." ;
+if = "IF", condition, statement, { statement },
+     [ "ELSE", statement, { statement } ], "END-IF", "." ;
+perform = "PERFORM", arithmetic-expression, "TIMES",
+          statement, { statement }, "END-PERFORM", "." ;
+stop-run = "STOP", "RUN", "." ;
 
-program-id-paragraph =
-    "PROGRAM-ID", ".", identifier, "." ;
+condition = or-condition ;
+or-condition = and-condition, { "OR", and-condition } ;
+and-condition = not-condition, { "AND", not-condition } ;
+not-condition = [ "NOT" ], comparison ;
+comparison = expression, ( "=" | "<>" | "<" | "<=" | ">" | ">=" ),
+             expression ;
 
-data-division =
-    "DATA", "DIVISION", "." ;
-
-working-storage-section =
-    "WORKING-STORAGE", "SECTION", ".", { data-declaration } ;
-
-data-declaration =
-    "01", identifier, picture, [ value-clause ], "." ;
-
-picture =
-      "PIC", "X", "(", positive-integer, ")"
-    | "PIC", "9", "(", positive-integer, ")" ;
-
-value-clause =
-    "VALUE", literal ;
-
-procedure-division =
-    "PROCEDURE", "DIVISION", "." ;
-
-statement =
-      display-statement
-    | move-statement
-    | compute-statement
-    | if-statement ;
-
-display-statement =
-    "DISPLAY", expression, "." ;
-
-move-statement =
-    "MOVE", expression, "TO", identifier, "." ;
-
-compute-statement =
-    "COMPUTE", identifier, "=", arithmetic-expression, "." ;
-
-if-statement =
-    "IF", comparison,
-    statement, { statement },
-    [ "ELSE", statement, { statement } ],
-    "END-IF", "." ;
-
-stop-run =
-    "STOP", "RUN", "." ;
-
-comparison =
-    expression, comparison-operator, expression ;
-
-comparison-operator =
-    "=" | "<>" | "<" | "<=" | ">" | ">=" ;
-
-expression =
-      arithmetic-expression
-    | string-expression ;
-
-string-expression =
-      string-literal
-    | string-identifier ;
-
-arithmetic-expression =
-    additive-expression ;
-
-additive-expression =
-    multiplicative-expression,
-    { ("+" | "-"), multiplicative-expression } ;
-
-multiplicative-expression =
-    unary-expression,
-    { ("*" | "/"), unary-expression } ;
-
-unary-expression =
-    [ "+" | "-" ], primary-expression ;
-
-primary-expression =
-      integer-literal
-    | numeric-identifier
-    | "(", arithmetic-expression, ")" ;
-
-literal =
-      integer-literal
-    | string-literal ;
+expression = arithmetic-expression | string-expression | spaces-literal ;
+string-expression = string-literal | string-identifier ;
+arithmetic-expression = additive-expression ;
+additive-expression = multiplicative-expression,
+                      { ( "+" | "-" ), multiplicative-expression } ;
+multiplicative-expression = unary-expression,
+                            { ( "*" | "/" ), unary-expression } ;
+unary-expression = [ "+" | "-" ], primary-expression ;
+primary-expression = integer-literal | zero-literal | numeric-identifier
+                   | "(", arithmetic-expression, ")" ;
+literal = integer-literal | string-literal | zero-literal | spaces-literal ;
+zero-literal = "ZERO" | "ZEROS" ;
+spaces-literal = "SPACE" | "SPACES" ;
 ```
 
-`numeric-identifier` and `string-identifier` are semantic classifications of
-an `identifier`, based on its declaration. They are not distinct lexer token
-kinds. Likewise, the parser may initially recognize `expression` without
-knowing its category; semantic analysis must enforce the category rules in
-[supported-cobol.md](supported-cobol.md).
+Identifier categories are semantic. Operators at each level associate left.
+Precedence is unary arithmetic, multiplication/division, addition/subtraction,
+comparison, `NOT`, `AND`, then `OR`. Comparisons cannot chain. Parentheses group
+arithmetic only; parenthesized compound conditions are unsupported.
 
-Binary `*` and `/` bind more tightly than binary `+` and `-`. Unary `+` and `-`
-bind more tightly than binary operators. Binary operators of equal precedence
-associate from left to right. Parentheses override precedence.
+## Structural and contextual constraints
 
-## Structural constraints
-
-The following constraints supplement the context-free grammar:
-
-- The five program headers occur exactly once and in the order shown.
-- The working-storage section may contain no declarations.
-- Only level-01 data declarations are supported.
-- A program ends with exactly one `STOP RUN.`.
-- `STOP RUN.` is not a `statement`; it cannot occur early or inside an `IF`.
-- An `IF` branch contains at least one statement. If `ELSE` is present, its
-  branch also contains at least one statement.
-- `END-IF` is mandatory, including for nested conditionals.
-- `DISPLAY` accepts exactly one expression.
-- `THEN` is not part of the grammar.
-- A comparison has exactly two operands and one comparison operator.
+- All divisions are required exactly once in the displayed order.
+- Working-storage may be empty; only level 01 and positive lengths work.
+- Each statement and explicit scope terminator has its shown period.
+- IF branches and inline PERFORM bodies are non-empty and explicitly terminated.
+- `STOP RUN.` occurs exactly once, last, and is not an ordinary statement.
+- DISPLAY has one or more adjacent operands and inserts no separator.
+- SPACE/SPACES is valid only for alphanumeric VALUE and MOVE contexts.
+- ZERO/ZEROS is numeric zero.
+- ACCEPT has only a target; advanced input clauses are absent.
+- Inline PERFORM supports only TIMES and evaluates its count once.

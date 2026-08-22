@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Translate the documented COBOL v0.1 subset into readable Python."
+      content="Translate the documented COBOL v0.2 subset into readable Python."
     />
     <title>COBOL → Python Workbench</title>
     <link rel="stylesheet" href="styles.css" />
@@ -18,7 +18,7 @@
         <span class="brand-mark" aria-hidden="true">C→P</span>
         <span>COBOL to Python</span>
       </a>
-      <span class="version">Subset v0.1</span>
+      <span class="version">Subset v0.2</span>
     </header>
 
     <main id="workspace">
@@ -27,10 +27,10 @@
           <div class="example-control">
             <label for="example">Example program</label>
             <select id="example">
-              <option value="minimal-display">Minimal display</option>
-              <option value="data-arithmetic">Data and arithmetic</option>
-              <option value="move-conditional">Move and conditional</option>
-              <option value="nested-conditionals">Nested conditionals</option>
+              <option value="interactive-greeting">Interactive greeting</option>
+              <option value="invoice-total">Invoice total</option>
+              <option value="countdown">Countdown</option>
+              <option value="compound-eligibility">Compound eligibility</option>
             </select>
           </div>
           <button id="transpile" class="primary-action" type="button" disabled>
@@ -97,22 +97,22 @@
       <section class="contract" aria-label="Supported COBOL features">
         <ul>
           <li><strong>Data</strong> PIC X and PIC 9 working storage</li>
-          <li><strong>Flow</strong> IF / ELSE / END-IF</li>
-          <li><strong>Actions</strong> DISPLAY, MOVE, and COMPUTE</li>
+          <li><strong>Flow</strong> compound IF and inline PERFORM TIMES</li>
+          <li><strong>Actions</strong> DISPLAY, ACCEPT, MOVE, COMPUTE, ADD, SUBTRACT</li>
         </ul>
       </section>
     </main>
 
     <footer>
-      Free-format COBOL only · Files, decimals, paragraphs, and PERFORM are unsupported.
+      Free-format COBOL only · Files, decimals, and paragraphs are unsupported.
     </footer>
 
     <script id="examples" type="application/json">
       {
-        "minimal-display": "IDENTIFICATION DIVISION.\nPROGRAM-ID. HELLO.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\nPROCEDURE DIVISION.\nDISPLAY \"Hello, world!\".\nSTOP RUN.",
-        "data-arithmetic": "IDENTIFICATION DIVISION.\nPROGRAM-ID. TOTALS.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 FIRST-NUMBER PIC 9(3) VALUE 12.\n01 SECOND-NUMBER PIC 9(3) VALUE 8.\n01 TOTAL PIC 9(4).\nPROCEDURE DIVISION.\nCOMPUTE TOTAL = FIRST-NUMBER + SECOND-NUMBER * 2.\nDISPLAY TOTAL.\nSTOP RUN.",
-        "move-conditional": "IDENTIFICATION DIVISION.\nPROGRAM-ID. GREETING.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 NAME PIC X(10) VALUE \"Ada\".\n01 COUNT PIC 9(2) VALUE 3.\nPROCEDURE DIVISION.\nIF COUNT >= 1\n    DISPLAY NAME.\nELSE\n    DISPLAY \"Nobody\".\nEND-IF.\nMOVE \"Grace\" TO NAME.\nDISPLAY NAME.\nSTOP RUN.",
-        "nested-conditionals": "IDENTIFICATION DIVISION.\nPROGRAM-ID. CLASSIFY.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 VALUE-A PIC 9(2) VALUE 5.\n01 VALUE-B PIC 9(2) VALUE 8.\nPROCEDURE DIVISION.\n*> Compare the two values.\nIF VALUE-A < VALUE-B\n    IF VALUE-A = 5\n        DISPLAY \"MATCH\".\n    ELSE\n        DISPLAY \"LOWER\".\n    END-IF.\nELSE\n    DISPLAY \"NOT-LOWER\".\nEND-IF.\nSTOP RUN."
+        "interactive-greeting": "IDENTIFICATION DIVISION.\nPROGRAM-ID. GREETER.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 USER-NAME PIC X(20).\nPROCEDURE DIVISION.\nDISPLAY \"What is your name? \".\nACCEPT USER-NAME.\nDISPLAY \"Hello, \" USER-NAME.\nSTOP RUN.",
+        "invoice-total": "IDENTIFICATION DIVISION.\nPROGRAM-ID. INVOICE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 QUANTITY PIC 9(3) VALUE 4.\n01 UNIT-PRICE PIC 9(3) VALUE 25.\n01 TOTAL PIC 9(5) VALUE ZERO.\nPROCEDURE DIVISION.\nCOMPUTE TOTAL = QUANTITY * UNIT-PRICE.\nADD 10 TO TOTAL.\nDISPLAY \"Total: \" TOTAL.\nSTOP RUN.",
+        "countdown": "IDENTIFICATION DIVISION.\nPROGRAM-ID. COUNTDOWN.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 COUNT-VALUE PIC 9(2) VALUE 3.\nPROCEDURE DIVISION.\nPERFORM 3 TIMES\n    DISPLAY COUNT-VALUE.\n    SUBTRACT 1 FROM COUNT-VALUE.\nEND-PERFORM.\nDISPLAY \"Go!\".\nSTOP RUN.",
+        "compound-eligibility": "IDENTIFICATION DIVISION.\nPROGRAM-ID. ELIGIBLE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 AGE PIC 9(3) VALUE 21.\n01 BLOCKED PIC 9(1) VALUE ZERO.\n01 MESSAGE PIC X(12) VALUE SPACES.\nPROCEDURE DIVISION.\nIF AGE >= 18 AND NOT BLOCKED = 1\n    MOVE \"Eligible\" TO MESSAGE.\nELSE\n    MOVE \"Not eligible\" TO MESSAGE.\nEND-IF.\nDISPLAY MESSAGE.\nSTOP RUN."
       }
     </script>
     <script type="module" src="app.js"></script>

@@ -1,25 +1,34 @@
-"""Deterministic Python generation from semantically analyzed COBOL v0.1."""
+"""Deterministic Python generation from semantically analyzed COBOL v0.2."""
 
 import json
 
 from cobol_to_python.ast import (
+    AcceptStatement,
+    AddStatement,
     ArithmeticExpression,
     ArithmeticOperator,
     Comparison,
     ComparisonOperator,
     ComputeStatement,
+    Condition,
     DisplayStatement,
     Expression,
     Identifier,
     IdentifierExpression,
     IfStatement,
     IntegerLiteral,
+    LogicalOperator,
     MoveStatement,
+    NotCondition,
+    PerformTimesStatement,
     Pic9,
+    SpacesLiteral,
     Statement,
     StringLiteral,
+    SubtractStatement,
     UnaryExpression,
     UnaryOperator,
+    ZeroLiteral,
 )
 from cobol_to_python.semantic import AnalyzedProgram, DataCategory, Symbol
 
@@ -59,6 +68,20 @@ def _cobol_divide(left: int, right: int) -> int:
         raise ZeroDivisionError("COBOL division by zero")
     quotient = abs(left) // abs(right)
     return -quotient if (left < 0) != (right < 0) else quotient
+
+
+def _cobol_accept_9(width: int) -> int:
+    text = input()
+    digits = text.removeprefix("-")
+    if not digits or any(character < "0" or character > "9" for character in digits):
+        raise ValueError("PIC 9 ACCEPT requires an optional minus sign and digits")
+    return _cobol_assign_9(int(text), width)
+
+
+def _cobol_perform_count(value: int) -> int:
+    if value < 0:
+        raise ValueError("PERFORM TIMES count cannot be negative")
+    return value
 """
 
 
@@ -66,6 +89,7 @@ class _PythonGenerator:
     def __init__(self, analyzed: AnalyzedProgram) -> None:
         self._analyzed = analyzed
         self._lines: list[str] = []
+        self._loop_index = 0
 
     def generate(self) -> str:
         self._lines.extend(
@@ -81,6 +105,8 @@ class _PythonGenerator:
             initial_value = declaration.initial_value
             if initial_value is None:
                 value = "0" if symbol.category is DataCategory.NUMERIC else "''"
+            elif isinstance(initial_value, SpacesLiteral):
+                value = f"' ' * {symbol.declaration.picture.length}"
             else:
                 value = self._expression(initial_value)
             self._line(1, self._assignment(symbol, value))
@@ -104,12 +130,19 @@ class _PythonGenerator:
 
     def _statement(self, statement: Statement, indentation: int) -> None:
         if isinstance(statement, DisplayStatement):
-            self._line(indentation, f"print({self._expression(statement.value)})")
+            values = ", ".join(self._expression(value) for value in statement.values)
+            separator = "" if len(statement.values) == 1 else ", sep=''"
+            self._line(indentation, f"print({values}{separator})")
         elif isinstance(statement, MoveStatement):
             target = self._symbol(statement.target)
+            value = (
+                f"' ' * {target.declaration.picture.length}"
+                if isinstance(statement.value, SpacesLiteral)
+                else self._expression(statement.value)
+            )
             self._line(
                 indentation,
-                self._assignment(target, self._expression(statement.value)),
+                self._assignment(target, value),
             )
         elif isinstance(statement, ComputeStatement):
             target = self._symbol(statement.target)
@@ -118,24 +151,52 @@ class _PythonGenerator:
                 self._assignment(target, self._arithmetic(statement.expression)),
             )
         elif isinstance(statement, IfStatement):
-            self._line(indentation, f"if {self._comparison(statement.condition)}:")
+            self._line(indentation, f"if {self._condition(statement.condition)}:")
             for child in statement.then_body:
                 self._statement(child, indentation + 1)
             if statement.else_body is not None:
                 self._line(indentation, "else:")
                 for child in statement.else_body:
                     self._statement(child, indentation + 1)
+        elif isinstance(statement, AcceptStatement):
+            target = self._symbol(statement.target)
+            width = target.declaration.picture.length
+            if target.category is DataCategory.NUMERIC:
+                value = f"_cobol_accept_9({width})"
+                self._line(indentation, f"{_python_name(target.name)} = {value}")
+            else:
+                self._line(indentation, self._assignment(target, "input()"))
+        elif isinstance(statement, (AddStatement, SubtractStatement)):
+            target = self._symbol(statement.target)
+            operator = "+" if isinstance(statement, AddStatement) else "-"
+            expression = self._arithmetic(statement.expression)
+            value = f"({_python_name(target.name)} {operator} {expression})"
+            self._line(indentation, self._assignment(target, value))
+        elif isinstance(statement, PerformTimesStatement):
+            self._loop_index += 1
+            index = self._loop_index
+            count = self._arithmetic(statement.count)
+            self._line(
+                indentation,
+                f"for _cobol_index_{index} in range(_cobol_perform_count({count})):",
+            )
+            for child in statement.body:
+                self._statement(child, indentation + 1)
 
     def _expression(self, expression: Expression) -> str:
         if isinstance(expression, StringLiteral):
             return json.dumps(expression.value, ensure_ascii=False)
         if isinstance(expression, IdentifierExpression):
             return _python_name(expression.name)
+        if isinstance(expression, SpacesLiteral):
+            raise AssertionError("SPACES requires an assignment target")
         return self._arithmetic(expression)
 
     def _arithmetic(self, expression: ArithmeticExpression) -> str:
         if isinstance(expression, IntegerLiteral):
             return str(expression.value)
+        if isinstance(expression, ZeroLiteral):
+            return "0"
         if isinstance(expression, IdentifierExpression):
             return _python_name(expression.name)
         if isinstance(expression, UnaryExpression):
@@ -153,6 +214,16 @@ class _PythonGenerator:
         right = self._expression(comparison.right)
         operator = _COMPARISON_OPERATORS[comparison.operator]
         return f"{left} {operator} {right}"
+
+    def _condition(self, condition: Condition) -> str:
+        if isinstance(condition, Comparison):
+            return self._comparison(condition)
+        if isinstance(condition, NotCondition):
+            return f"not ({self._condition(condition.operand)})"
+        operator = "and" if condition.operator is LogicalOperator.AND else "or"
+        left = self._condition(condition.left)
+        right = self._condition(condition.right)
+        return f"({left}) {operator} ({right})"
 
     def _assignment(self, symbol: Symbol, value: str) -> str:
         name = _python_name(symbol.name)

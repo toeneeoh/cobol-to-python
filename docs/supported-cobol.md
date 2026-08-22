@@ -1,303 +1,149 @@
-# Supported COBOL in v0.1
+# Supported COBOL in v0.2
 
-Version 0.1 supports a deliberately small, free-format COBOL dialect. A
-construct is supported only when this document and [grammar.md](grammar.md)
-explicitly describe it. Compatibility with a general-purpose COBOL compiler
-does not imply support here.
+Version 0.2 is a strict free-format teaching subset. All v0.1 programs remain
+valid. The exact syntax is in [grammar.md](grammar.md).
 
-## Program structure
+## Program, data, and statements
 
-Every program contains these elements exactly once and in this order:
+Programs require identification, program-id, data, working-storage, and
+procedure headers in order, then one final `STOP RUN.`. Only level-01 `PIC X(n)`
+and `PIC 9(n)` items exist. X values are padded to width; numeric values are
+integers with at most `n` digits excluding a minus sign. Overflow is an error.
+Names resolve case-insensitively, declarations are unique, and conversions are
+never implicit.
 
-1. `IDENTIFICATION DIVISION.`
-2. A `PROGRAM-ID.` paragraph containing one identifier.
-3. `DATA DIVISION.`
-4. `WORKING-STORAGE SECTION.`
-5. `PROCEDURE DIVISION.`
-6. Zero or more supported statements.
-7. One final `STOP RUN.`
+`ZERO`/`ZEROS` mean numeric zero. `SPACE`/`SPACES` fill an entire alphanumeric
+target in a VALUE or MOVE context; they are not one-character strings.
 
-The working-storage section may be empty. `STOP RUN.` is allowed only as the
-final top-level construct. See [grammar.md](grammar.md) for the complete lexical
-and syntactic contract.
+- `DISPLAY A B "text".` prints operands without separators, then a newline.
+- `MOVE expression TO target.` and `COMPUTE target = arithmetic-expression.`
+  perform checked assignments.
+- `ACCEPT target.` reads a line. PIC X input is padded and checked. PIC 9 input
+  permits ASCII digits with an optional leading minus and is width checked.
+- `ADD expression TO target.` and `SUBTRACT expression FROM target.` update a
+  numeric target with checked arithmetic.
+- `IF condition ... [ELSE ...] END-IF.` has explicit nestable scope.
+- `PERFORM expression TIMES ... END-PERFORM.` repeats a non-empty inline body.
+  The count is evaluated once; zero skips it and negative is a runtime error.
 
-## Working-storage data
-
-Only level-01 elementary items are supported:
-
-```cobol
-01 CUSTOMER-NAME PIC X(20).
-01 STATUS-TEXT PIC X(8) VALUE "READY".
-01 ITEM-COUNT PIC 9(3).
-01 START-COUNT PIC 9(3) VALUE 12.
-```
-
-`PIC X(n)` declares a fixed-width string, where `n` is positive. Without a
-`VALUE`, it begins as `n` spaces. A shorter string is right-padded with spaces
-on initialization and assignment. A string longer than `n` is an error and is
-never silently truncated.
-
-`PIC 9(n)` declares an integer with at most `n` decimal digits, excluding an
-optional runtime minus sign. Without a `VALUE`, it begins as zero. An initial
-`VALUE` is an unsigned integer literal of no more than `n` digits. Arithmetic
-may subsequently produce a negative value; the sign does not consume one of
-the `n` digit positions.
-
-The `VALUE` category must match the picture category. Declarations are unique
-and references resolve case-insensitively. Every referenced data name must be
-declared.
-
-## Statements
-
-The supported procedure statements are:
-
-- `DISPLAY expression.` prints one string or integer followed by a newline.
-- `MOVE expression TO identifier.` assigns a value after category and size
-  validation.
-- `COMPUTE identifier = arithmetic-expression.` evaluates integer arithmetic
-  and assigns the result to a numeric target.
-- `IF comparison ... [ELSE ...] END-IF.` selects a non-empty statement branch.
-- `STOP RUN.` ends the program and must appear once, at the end.
-
-Nested `IF` statements are supported. `END-IF` and the period following it are
-mandatory. Periods terminate constructs but do not implicitly close scopes.
-
-String expressions are limited to string literals and `PIC X` identifiers.
-Numeric expressions support integer literals, `PIC 9` identifiers,
-parentheses, unary `+` and `-`, and binary `+`, `-`, `*`, and `/`.
-
-Comparisons support `=`, `<>`, `<`, `<=`, `>`, and `>=`. Both operands must
-have the same category. Chained comparisons are unsupported.
-
-Arithmetic uses integer values. Division truncates toward zero, so `7 / 2` is
-`3` and `-7 / 2` is `-3`. Division by zero is a runtime error. A numeric result
-with more digits than its target picture permits is a runtime size error.
-
-There are no implicit conversions between strings and integers. A mismatched
-assignment, comparison, `VALUE` clause, or arithmetic operand is a semantic
-error.
+Integer division truncates toward zero. Conditions compare matching categories
+with `= <> < <= > >=`; comparison chains are rejected. Precedence is comparison
+before `NOT`, before `AND`, before `OR`.
 
 ## Python semantic mapping
 
-Generated Python must preserve these mappings deterministically:
-
 | COBOL | Python behavior |
 | --- | --- |
-| Program | A module with a `main()` function |
-| `PIC X(n)` | A `str` subject to fixed-width assignment rules |
-| `PIC 9(n)` | An `int` subject to digit-width assignment rules |
-| Uninitialized `PIC X(n)` | `" " * n` |
-| Uninitialized `PIC 9(n)` | `0` |
-| `DISPLAY value` | `print(value)` |
-| `MOVE source TO target` | Validated assignment |
-| `COMPUTE target = expression` | Integer evaluation and validated assignment |
-| `IF` / `ELSE` | Python `if` / `else` |
-| `=` / `<>` | Python `==` / `!=` |
-| `<` / `<=` / `>` / `>=` | Corresponding Python comparison |
-| `STOP RUN` | Normal return from `main()` |
+| Program | Module with `main()` |
+| PIC X / PIC 9 | Checked `str` / checked `int` |
+| DISPLAY operands | `print` with no inter-operand separator |
+| ACCEPT | `input()` plus target validation |
+| MOVE / COMPUTE | Checked assignment |
+| ADD / SUBTRACT | Checked read-modify-write |
+| PERFORM TIMES | `range` loop; count evaluated once |
+| IF / NOT / AND / OR | Python conditional and boolean operators |
+| ZERO / SPACES | `0` / target-width spaces |
+| STOP RUN | Normal return from `main()` |
 
-Generated data names use a `cobol_` prefix, lowercase letters, and underscores
-in place of COBOL hyphens. For example, `CUSTOMER-NAME` maps to
-`cobol_customer_name`. The prefix prevents collisions with Python keywords and
-generator-owned names. Since source identifiers cannot contain underscores,
-this mapping does not merge two valid source spellings.
+Generated names use a `cobol_` prefix, lowercase, and underscores for hyphens.
 
 ## Complete accepted programs
 
-### Minimal display
+### Interactive greeting
 
 ```cobol
 IDENTIFICATION DIVISION.
-PROGRAM-ID. HELLO.
+PROGRAM-ID. GREETER.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+01 USER-NAME PIC X(20).
 PROCEDURE DIVISION.
-DISPLAY "Hello, world!".
+DISPLAY "What is your name? ".
+ACCEPT USER-NAME.
+DISPLAY "Hello, " USER-NAME.
 STOP RUN.
 ```
 
-### Data and arithmetic
+### Invoice total
 
 ```cobol
 IDENTIFICATION DIVISION.
-PROGRAM-ID. TOTALS.
+PROGRAM-ID. INVOICE.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-01 FIRST-NUMBER PIC 9(3) VALUE 12.
-01 SECOND-NUMBER PIC 9(3) VALUE 8.
-01 TOTAL PIC 9(4).
+01 QUANTITY PIC 9(3) VALUE 4.
+01 UNIT-PRICE PIC 9(3) VALUE 25.
+01 TOTAL PIC 9(5) VALUE ZERO.
 PROCEDURE DIVISION.
-COMPUTE TOTAL = FIRST-NUMBER + SECOND-NUMBER * 2.
-DISPLAY TOTAL.
+COMPUTE TOTAL = QUANTITY * UNIT-PRICE.
+ADD 10 TO TOTAL.
+DISPLAY "Total: " TOTAL.
 STOP RUN.
 ```
 
-### Move and conditional
+### Countdown
 
 ```cobol
 IDENTIFICATION DIVISION.
-PROGRAM-ID. GREETING.
+PROGRAM-ID. COUNTDOWN.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-01 NAME PIC X(10) VALUE "Ada".
-01 COUNT PIC 9(2) VALUE 3.
+01 COUNT-VALUE PIC 9(2) VALUE 3.
 PROCEDURE DIVISION.
-IF COUNT >= 1
-    DISPLAY NAME.
+PERFORM 3 TIMES
+    DISPLAY COUNT-VALUE.
+    SUBTRACT 1 FROM COUNT-VALUE.
+END-PERFORM.
+DISPLAY "Go!".
+STOP RUN.
+```
+
+### Compound eligibility and reset
+
+```cobol
+IDENTIFICATION DIVISION.
+PROGRAM-ID. ELIGIBLE.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 AGE PIC 9(3) VALUE 21.
+01 BLOCKED PIC 9(1) VALUE ZERO.
+01 MESSAGE PIC X(12) VALUE SPACES.
+PROCEDURE DIVISION.
+IF AGE >= 18 AND NOT BLOCKED = 1
+    MOVE "Eligible" TO MESSAGE.
 ELSE
-    DISPLAY "Nobody".
+    MOVE "Not eligible" TO MESSAGE.
 END-IF.
-MOVE "Grace" TO NAME.
-DISPLAY NAME.
+DISPLAY MESSAGE.
 STOP RUN.
 ```
-
-### Nested conditionals and comments
-
-```cobol
-IDENTIFICATION DIVISION.
-PROGRAM-ID. CLASSIFY.
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-01 VALUE-A PIC 9(2) VALUE 5.
-01 VALUE-B PIC 9(2) VALUE 8.
-PROCEDURE DIVISION.
-*> Compare the two values.
-IF VALUE-A < VALUE-B
-    IF VALUE-A = 5
-        DISPLAY "MATCH".
-    ELSE
-        DISPLAY "LOWER".
-    END-IF.
-ELSE
-    DISPLAY "NOT-LOWER".
-END-IF.
-STOP RUN.
-```
-
-Each example follows the grammar exactly: all headers are present and ordered,
-all declarations are level 01, every ordinary statement has its period, every
-conditional has non-empty branches and `END-IF.`, and `STOP RUN.` occurs once
-at the end.
 
 ## Rejected examples
 
-The category names below define diagnostic classes conceptually; they do not
-require implementation in the documentation milestone.
+- `000100 IDENTIFICATION DIVISION.` — `UnsupportedSourceFormatError`.
+- `01 9COUNT PIC 9(2).` — `LexicalError`.
+- `DISPLAY "unfinished.` — `LexicalError`.
+- `IF A = 1 DISPLAY A.` — `SyntaxError` (missing END-IF).
+- `PERFORM WORK.` or `PERFORM 2 TIMES END-PERFORM.` — `SyntaxError`.
+- `IF (A = 1 OR B = 2) ...` — `SyntaxError`.
+- `ACCEPT NAME FROM CONSOLE.` — `SyntaxError`.
+- `MOVE SPACES TO COUNT.` or `ADD 1 TO NAME.` — `SemanticError`.
+- `DISPLAY SPACES.` — `SemanticError`; SPACES needs a target width.
+- `DISPLAY MISSING-NAME.` — `SemanticError`.
 
-### Fixed-format source
+## Explicitly unsupported
 
-```cobol
-000100 IDENTIFICATION DIVISION.
-000200 PROGRAM-ID. FIXED.
-```
+Fixed-column input; files; copybooks; decimals and edited/signed pictures;
+REDEFINES; OCCURS; groups and levels other than 01; paragraphs and sections;
+paragraph PERFORM, UNTIL, and VARYING; GO TO; MULTIPLY/DIVIDE statements;
+GIVING, ROUNDED, and SIZE ERROR; EVALUATE; INITIALIZE; STRING/UNSTRING; THEN;
+special ELSE IF; parenthesized compound or abbreviated conditions; advanced
+ACCEPT; DISPLAY separators and NO ADVANCING; implicit scope/conversions; and
+browser execution of generated code.
 
-Expected category: `UnsupportedSourceFormatError`. Sequence-area source is not
-part of the free-format dialect.
+## Deliberate boundaries
 
-### Invalid identifier
-
-```cobol
-01 9COUNT PIC 9(2).
-```
-
-Expected category: `LexicalError`. An identifier cannot begin with a digit.
-
-### Unterminated string
-
-```cobol
-DISPLAY "HELLO.
-```
-
-Expected category: `LexicalError`. A string must close on the same physical
-line.
-
-### Missing explicit scope terminator
-
-```cobol
-IF COUNT = 1
-    DISPLAY "ONE".
-STOP RUN.
-```
-
-Expected category: `SyntaxError`. Every `IF` requires `END-IF.`.
-
-### Type mismatch
-
-```cobol
-MOVE "TEN" TO COUNT.
-```
-
-Expected category: `SemanticError` when `COUNT` is declared as `PIC 9`.
-
-### Undeclared identifier
-
-```cobol
-DISPLAY MISSING-NAME.
-```
-
-Expected category: `SemanticError`. Every referenced data name must be
-declared.
-
-### Unsupported statement
-
-```cobol
-PERFORM CALCULATE-TOTAL.
-```
-
-Expected category: `UnsupportedFeatureError`. `PERFORM` and paragraphs are
-outside version 0.1.
-
-### Unsupported decimal picture
-
-```cobol
-01 PRICE PIC 9(3)V99.
-```
-
-Expected category: `UnsupportedFeatureError`. Decimal pictures are outside
-version 0.1.
-
-## Explicitly unsupported features
-
-- Fixed-column COBOL, continuation lines, and compiler directives.
-- Files and file-control clauses.
-- Copybooks and `COPY`.
-- Decimal, signed, edited, and other picture forms beyond `X(n)` and `9(n)`.
-- `REDEFINES`.
-- `OCCURS`, tables, and subscripting.
-- Group items and levels other than `01`.
-- `PERFORM`.
-- Procedure paragraphs and sections.
-- `GO TO`.
-- `THEN` and `ELSE IF` as special forms.
-- `ACCEPT`, `INITIALIZE`, `STRING`, and `UNSTRING`.
-- Figurative constants such as `ZERO`, `SPACE`, and `HIGH-VALUE`.
-- Boolean operators such as `AND`, `OR`, and `NOT`.
-- Abbreviated or chained conditions.
-- String concatenation.
-- Multiple operands in one `DISPLAY`.
-- `STOP RUN` inside a conditional or before the end of a program.
-- Implicit period-based scope termination.
-- Implicit conversion between string and numeric data.
-
-## Resolved ambiguities and open decisions
-
-Version 0.1 resolves potentially ambiguous behavior as follows:
-
-- `/` is integer division truncated toward zero, not Python floor division.
-- Negative runtime values are allowed in `PIC 9(n)`; the sign is excluded from
-  `n`. Signed picture syntax remains unsupported.
-- Unary signs are operators rather than part of integer literal tokens.
-- Periods are mandatory terminators and never implicit scope terminators.
-- `END-IF` is mandatory and `THEN` is unsupported.
-- Identifiers cannot end in a hyphen or contain consecutive hyphens.
-- Hyphens within identifiers are scanned maximally; binary subtraction has
-  whitespace on both sides, while unary minus may touch its operand.
-- A digit-leading name such as `9COUNT` is one malformed lexical unit.
-- Embedded double quotes in strings use doubled quotes.
-- Type mismatches and size overflow are errors, not implicit conversions or
-  truncations.
-
-There are no known unresolved language decisions within the version 0.1
-contract. Behavior not explicitly defined by these two documents is
-unsupported until it is documented, implemented, and tested.
+Subtraction spacing disambiguates identifier hyphens. `NOT A = B` means
+`NOT (A = B)`. Condition parentheses are deferred to avoid ambiguity with
+arithmetic parentheses. SPACES is target-dependent. PERFORM counts are integer
+expressions evaluated once. No other v0.2 language decision is unresolved.
