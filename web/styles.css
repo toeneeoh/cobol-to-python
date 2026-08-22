@@ -123,38 +123,13 @@ footer {
   border-radius: 999px;
 }
 
-.intro {
-  max-width: 48rem;
-  padding: clamp(2.75rem, 6vw, 5rem) 0 clamp(2rem, 4vw, 3.25rem);
-}
-
-.eyebrow {
-  margin: 0 0 0.75rem;
-  color: var(--signal);
-}
-
-h1,
 h2,
 p {
   margin-top: 0;
 }
 
-h1 {
-  margin-bottom: 0.9rem;
-  font-size: clamp(1.9rem, 3.5vw, 3rem);
-  font-weight: 740;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.lede {
-  max-width: 47rem;
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: clamp(1rem, 2vw, 1.3rem);
-}
-
 .workbench {
+  margin-top: clamp(1.5rem, 4vw, 3rem);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 0.85rem;
@@ -317,19 +292,9 @@ code {
 }
 
 .contract {
-  display: grid;
-  grid-template-columns: 0.8fr 1.2fr;
-  gap: 3rem;
-  align-items: start;
+  max-width: 52rem;
+  margin-inline: auto;
   padding: clamp(4rem, 8vw, 7rem) 0;
-}
-
-.contract h2 {
-  max-width: 16ch;
-  margin: 0;
-  font-size: clamp(1.8rem, 4vw, 3.2rem);
-  letter-spacing: -0.04em;
-  line-height: 1;
 }
 
 .contract ul {
@@ -380,8 +345,7 @@ footer {
 }
 
 @media (max-width: 48rem) {
-  .editor-grid,
-  .contract {
+  .editor-grid {
     grid-template-columns: 1fr;
   }
 
@@ -417,9 +381,6 @@ footer {
     width: min(100% - 1rem, 92rem);
   }
 
-  .contract {
-    gap: 2rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
