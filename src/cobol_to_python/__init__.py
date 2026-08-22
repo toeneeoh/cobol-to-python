@@ -35,6 +35,7 @@ from cobol_to_python.lexer import (
     TokenKind,
     tokenize,
 )
+from cobol_to_python.parser import ParsedExpression, ParseError, parse_expression
 
 __all__ = [
     "ArithmeticExpression",
@@ -53,6 +54,8 @@ __all__ = [
     "LexerError",
     "Literal",
     "MoveStatement",
+    "ParseError",
+    "ParsedExpression",
     "Pic9",
     "PicX",
     "Picture",
@@ -67,5 +70,6 @@ __all__ = [
     "TokenKind",
     "UnaryExpression",
     "UnaryOperator",
+    "parse_expression",
     "tokenize",
 ]
