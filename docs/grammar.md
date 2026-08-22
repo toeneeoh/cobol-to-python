@@ -38,8 +38,16 @@ identifier-hyphen = "-" ;
 The prose restrictions on trailing and consecutive hyphens apply in addition
 to the simplified production above.
 
+Hyphens inside identifiers are scanned maximally, so `A-B` and `ITEM-1` are
+identifiers. Binary subtraction must have whitespace on both sides, as in
+`A - B`. Unary minus may directly precede its operand, as in `-7`, `-COUNT`, or
+`-(A + B)`. A hyphen attached to the end of an identifier or a pair of
+consecutive hyphens is a lexical error.
+
 Integer literals contain one or more ASCII digits. A sign is an operator, not
-part of an integer literal. A `positive-integer` has a value greater than zero.
+part of an integer literal. A digit sequence immediately followed by a letter
+or hyphen is a malformed lexical unit rather than two tokens. A
+`positive-integer` has a value greater than zero.
 
 String literals begin and end with a double quote and cannot span physical
 lines. Two consecutive double quotes inside a string represent one literal

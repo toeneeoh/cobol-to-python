@@ -291,6 +291,9 @@ Version 0.1 resolves potentially ambiguous behavior as follows:
 - Periods are mandatory terminators and never implicit scope terminators.
 - `END-IF` is mandatory and `THEN` is unsupported.
 - Identifiers cannot end in a hyphen or contain consecutive hyphens.
+- Hyphens within identifiers are scanned maximally; binary subtraction has
+  whitespace on both sides, while unary minus may touch its operand.
+- A digit-leading name such as `9COUNT` is one malformed lexical unit.
 - Embedded double quotes in strings use doubled quotes.
 - Type mismatches and size overflow are errors, not implicit conversions or
   truncations.
