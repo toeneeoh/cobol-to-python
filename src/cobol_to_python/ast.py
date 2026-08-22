@@ -177,7 +177,9 @@ class IfStatement:
 
     condition: Comparison
     then_body: tuple["Statement", ...]
+    then_span: SourceSpan
     else_body: tuple["Statement", ...] | None
+    else_span: SourceSpan | None
     span: SourceSpan
 
 
@@ -188,6 +190,15 @@ Statement: TypeAlias = DisplayStatement | MoveStatement | ComputeStatement | IfS
 class StopRun:
     """The mandatory final ``STOP RUN.`` construct."""
 
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
+class ProcedureDivision:
+    """A complete procedure division with its mandatory final stop."""
+
+    statements: tuple[Statement, ...]
+    stop_run: StopRun
     span: SourceSpan
 
 

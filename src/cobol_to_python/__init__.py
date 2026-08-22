@@ -20,6 +20,7 @@ from cobol_to_python.ast import (
     Pic9,
     Picture,
     PicX,
+    ProcedureDivision,
     Program,
     ProgramIdentification,
     Statement,
@@ -41,6 +42,7 @@ from cobol_to_python.parser import (
     ParseError,
     parse_data_division,
     parse_expression,
+    parse_procedure_division,
 )
 
 __all__ = [
@@ -68,6 +70,7 @@ __all__ = [
     "Picture",
     "Program",
     "ProgramIdentification",
+    "ProcedureDivision",
     "SourceLocation",
     "SourceSpan",
     "Statement",
@@ -79,5 +82,6 @@ __all__ = [
     "UnaryOperator",
     "parse_data_division",
     "parse_expression",
+    "parse_procedure_division",
     "tokenize",
 ]

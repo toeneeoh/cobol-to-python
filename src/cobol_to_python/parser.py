@@ -9,16 +9,23 @@ from cobol_to_python.ast import (
     BinaryExpression,
     Comparison,
     ComparisonOperator,
+    ComputeStatement,
     DataDeclaration,
     DataDivision,
+    DisplayStatement,
     Expression,
     Identifier,
     IdentifierExpression,
+    IfStatement,
     IntegerLiteral,
     Literal,
+    MoveStatement,
     Pic9,
     Picture,
     PicX,
+    ProcedureDivision,
+    Statement,
+    StopRun,
     StringLiteral,
     UnaryExpression,
     UnaryOperator,
@@ -94,8 +101,8 @@ _COMPARISON_KINDS = tuple(_COMPARISON_OPERATORS)
 
 
 class _ExpressionParser:
-    def __init__(self, tokens: list[Token]) -> None:
-        self._cursor = _TokenCursor(tokens)
+    def __init__(self, cursor: _TokenCursor) -> None:
+        self._cursor = cursor
 
     def parse(self) -> ParsedExpression:
         left = self._parse_expression()
@@ -111,6 +118,24 @@ class _ExpressionParser:
                 "end of input; chained comparisons are unsupported",
             )
         self._expect_eof()
+        return Comparison(
+            left,
+            _COMPARISON_OPERATORS[operator_token.kind],
+            right,
+            _combined_span(left.span, right.span),
+        )
+
+    def parse_required_comparison(self) -> Comparison:
+        left = self._parse_expression()
+        operator_token = self._cursor.match(*_COMPARISON_KINDS)
+        if operator_token is None:
+            raise ParseError(self._cursor.current, "a comparison operator")
+        right = self._parse_expression()
+        if self._cursor.current.kind in _COMPARISON_OPERATORS:
+            raise ParseError(
+                self._cursor.current,
+                "a statement; chained comparisons are unsupported",
+            )
         return Comparison(
             left,
             _COMPARISON_OPERATORS[operator_token.kind],
@@ -282,6 +307,134 @@ class _DataDivisionParser:
         raise ParseError(token, "an integer or string literal after VALUE")
 
 
+_STATEMENT_STARTERS = (
+    TokenKind.DISPLAY,
+    TokenKind.MOVE,
+    TokenKind.COMPUTE,
+    TokenKind.IF,
+)
+
+
+class _ProcedureDivisionParser:
+    def __init__(self, tokens: list[Token]) -> None:
+        self._cursor = _TokenCursor(tokens)
+        self._expressions = _ExpressionParser(self._cursor)
+
+    def parse(self) -> ProcedureDivision:
+        start = self._cursor.expect(TokenKind.PROCEDURE, "'PROCEDURE'")
+        self._cursor.expect(TokenKind.DIVISION, "'DIVISION'")
+        self._cursor.expect(TokenKind.PERIOD, "'.' after PROCEDURE DIVISION")
+
+        statements: list[Statement] = []
+        while not self._cursor.check(TokenKind.STOP):
+            if self._cursor.check(TokenKind.EOF):
+                raise ParseError(self._cursor.current, "final 'STOP RUN.'")
+            statements.append(self._parse_statement())
+
+        stop_run = self._parse_stop_run()
+        self._cursor.expect(TokenKind.EOF, "end of input after STOP RUN.")
+        return ProcedureDivision(
+            tuple(statements),
+            stop_run,
+            SourceSpan(start.span.start, stop_run.span.end),
+        )
+
+    def _parse_statement(self) -> Statement:
+        kind = self._cursor.current.kind
+        if kind is TokenKind.DISPLAY:
+            return self._parse_display()
+        if kind is TokenKind.MOVE:
+            return self._parse_move()
+        if kind is TokenKind.COMPUTE:
+            return self._parse_compute()
+        if kind is TokenKind.IF:
+            return self._parse_if()
+        raise ParseError(
+            self._cursor.current,
+            "a DISPLAY, MOVE, COMPUTE, or IF statement",
+        )
+
+    def _parse_display(self) -> DisplayStatement:
+        start = self._cursor.advance()
+        value = self._expressions._parse_expression()
+        period = self._cursor.expect(TokenKind.PERIOD, "'.' after DISPLAY operand")
+        return DisplayStatement(value, SourceSpan(start.span.start, period.span.end))
+
+    def _parse_move(self) -> MoveStatement:
+        start = self._cursor.advance()
+        value = self._expressions._parse_expression()
+        self._cursor.expect(TokenKind.TO, "'TO' after MOVE source")
+        target_token = self._cursor.expect(
+            TokenKind.IDENTIFIER, "an identifier after TO"
+        )
+        target = Identifier(target_token.lexeme, target_token.span)
+        period = self._cursor.expect(TokenKind.PERIOD, "'.' after MOVE target")
+        return MoveStatement(
+            value,
+            target,
+            SourceSpan(start.span.start, period.span.end),
+        )
+
+    def _parse_compute(self) -> ComputeStatement:
+        start = self._cursor.advance()
+        target_token = self._cursor.expect(
+            TokenKind.IDENTIFIER, "an identifier after COMPUTE"
+        )
+        target = Identifier(target_token.lexeme, target_token.span)
+        self._cursor.expect(TokenKind.EQUAL, "'=' after COMPUTE target")
+        expression = self._expressions._parse_additive()
+        period = self._cursor.expect(TokenKind.PERIOD, "'.' after COMPUTE expression")
+        return ComputeStatement(
+            target,
+            expression,
+            SourceSpan(start.span.start, period.span.end),
+        )
+
+    def _parse_if(self) -> IfStatement:
+        start = self._cursor.advance()
+        condition = self._expressions.parse_required_comparison()
+        then_body, then_span = self._parse_branch(TokenKind.ELSE, TokenKind.END_IF)
+
+        else_body: tuple[Statement, ...] | None = None
+        else_span: SourceSpan | None = None
+        if self._cursor.match(TokenKind.ELSE) is not None:
+            else_body, else_span = self._parse_branch(TokenKind.END_IF)
+
+        self._cursor.expect(TokenKind.END_IF, "'END-IF'")
+        period = self._cursor.expect(TokenKind.PERIOD, "'.' after END-IF")
+        return IfStatement(
+            condition,
+            then_body,
+            then_span,
+            else_body,
+            else_span,
+            SourceSpan(start.span.start, period.span.end),
+        )
+
+    def _parse_branch(
+        self, *terminators: TokenKind
+    ) -> tuple[tuple[Statement, ...], SourceSpan]:
+        if self._cursor.current.kind in terminators:
+            raise ParseError(self._cursor.current, "a statement in the IF branch")
+
+        statements: list[Statement] = []
+        while self._cursor.current.kind not in terminators:
+            if self._cursor.check(TokenKind.EOF):
+                raise ParseError(self._cursor.current, "'ELSE' or 'END-IF'")
+            statements.append(self._parse_statement())
+
+        return (
+            tuple(statements),
+            SourceSpan(statements[0].span.start, statements[-1].span.end),
+        )
+
+    def _parse_stop_run(self) -> StopRun:
+        start = self._cursor.expect(TokenKind.STOP, "'STOP'")
+        self._cursor.expect(TokenKind.RUN, "'RUN' after STOP")
+        period = self._cursor.expect(TokenKind.PERIOD, "'.' after STOP RUN")
+        return StopRun(SourceSpan(start.span.start, period.span.end))
+
+
 def _combined_span(left: SourceSpan, right: SourceSpan) -> SourceSpan:
     return SourceSpan(left.start, right.end)
 
@@ -299,10 +452,16 @@ def _decode_string(lexeme: str) -> str:
 def parse_expression(source: str) -> ParsedExpression:
     """Parse one standalone expression or comparison and require end of input."""
 
-    return _ExpressionParser(tokenize(source)).parse()
+    return _ExpressionParser(_TokenCursor(tokenize(source))).parse()
 
 
 def parse_data_division(source: str) -> DataDivision:
     """Parse one complete data division and require end of input."""
 
     return _DataDivisionParser(tokenize(source)).parse()
+
+
+def parse_procedure_division(source: str) -> ProcedureDivision:
+    """Parse one complete procedure division and require end of input."""
+
+    return _ProcedureDivisionParser(tokenize(source)).parse()

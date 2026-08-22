@@ -109,8 +109,15 @@ def test_nested_conditionals_and_optional_else_branches() -> None:
         node_span,
     )
     display = DisplayStatement(StringLiteral("YES", node_span), node_span)
-    inner = IfStatement(condition, (display,), None, node_span)
-    outer = IfStatement(condition, (inner,), (display,), node_span)
+    inner = IfStatement(condition, (display,), node_span, None, None, node_span)
+    outer = IfStatement(
+        condition,
+        (inner,),
+        node_span,
+        (display,),
+        node_span,
+        node_span,
+    )
 
     assert inner.else_body is None
     assert outer.then_body == (inner,)
