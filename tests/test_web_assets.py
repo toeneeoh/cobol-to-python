@@ -58,7 +58,9 @@ def test_static_assets_are_local_and_present() -> None:
     assert (WEB / "app.js").is_file()
     assert 'href="styles.css"' in markup
     assert any(script.get("src") == "app.js" for script in parser.scripts)
-    assert not re.search(r'(?:src|href)="https?://', markup)
+    assert not re.search(r'src="https?://', markup)
+    assert 'href="https://toeneeoh.github.io/"' in markup
+    assert 'href="https://github.com/toeneeoh/cobol-to-python"' in markup
 
 
 def test_preview_server_uses_javascript_mime_type_for_modules() -> None:

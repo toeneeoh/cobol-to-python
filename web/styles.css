@@ -320,10 +320,28 @@ code {
 }
 
 footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 1.5rem 0 3rem;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.72rem;
+}
+
+footer nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+footer a {
+  color: inherit;
+  text-underline-offset: 0.2rem;
+}
+
+footer a:hover {
+  color: var(--ink);
 }
 
 .visually-hidden {
