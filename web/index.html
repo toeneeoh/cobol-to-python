@@ -77,7 +77,6 @@
               spellcheck="false"
               placeholder="Generated Python will appear here."
             ></textarea>
-            <p class="panel-help">Deterministic output from the typed pipeline.</p>
           </section>
         </div>
 
@@ -97,29 +96,27 @@
       <section class="about" aria-labelledby="about-heading">
         <div>
           <span class="panel-kicker">About the language</span>
-          <h2 id="about-heading">COBOL is built around explicit business data.</h2>
+          <h2 id="about-heading">What is COBOL?</h2>
         </div>
         <div class="about-copy">
           <p>
-            COBOL is a procedural language designed for readable business rules,
-            fixed-width records, and long-lived data-processing systems. Its data
-            declarations carry meaning that Python variables do not, so this
-            transpiler preserves checks such as field width and numeric range in
-            the generated code.
+            COBOL is a programming language created for business, financial, and
+            administrative data processing. It became widely used in banking,
+            government, insurance, and other large organizations, where many COBOL
+            systems continue to support essential operations.
           </p>
           <p>
-            This v0.2 subset handles free-format programs with PIC X and PIC 9
-            working storage, input and display, checked assignments and arithmetic,
-            compound conditions, and inline counted loops. Files, decimals,
-            copybooks, and procedure paragraphs are intentionally outside the
-            current language contract.
+            The language emphasizes readable statements and explicit descriptions
+            of stored data. Unlike dynamically typed Python variables, COBOL fields
+            commonly have declared formats and fixed sizes. Those differences are
+            represented in the generated Python through validation for field width,
+            numeric range, and compatible assignments.
           </p>
           <p>
-            Translation runs locally in your browser through a staged lexer,
-            parser, typed syntax tree, semantic analyzer, and Python generator.
-            The page shows the generated Python but does not execute it: COBOL
-            programs can accept input and encode operational business behavior, so
-            execution is kept as a separate, explicit step.
+            This project supports a documented free-format subset containing basic
+            data declarations, input and output, arithmetic, conditions, and counted
+            loops. Translation is performed locally in the browser. Generated Python
+            is displayed for inspection and is not executed by the page.
           </p>
         </div>
       </section>
