@@ -18,7 +18,7 @@
         <span class="brand-mark" aria-hidden="true">C→P</span>
         <span>COBOL to Python</span>
       </a>
-      <span class="version">Subset v0.2</span>
+      <span class="version">v0.2</span>
     </header>
 
     <main id="workspace">
@@ -94,18 +94,38 @@
         </div>
       </section>
 
-      <section class="contract" aria-label="Supported COBOL features">
-        <ul>
-          <li><strong>Data</strong> PIC X and PIC 9 working storage</li>
-          <li><strong>Flow</strong> compound IF and inline PERFORM TIMES</li>
-          <li><strong>Actions</strong> DISPLAY, ACCEPT, MOVE, COMPUTE, ADD, SUBTRACT</li>
-        </ul>
+      <section class="about" aria-labelledby="about-heading">
+        <div>
+          <span class="panel-kicker">About the language</span>
+          <h2 id="about-heading">COBOL is built around explicit business data.</h2>
+        </div>
+        <div class="about-copy">
+          <p>
+            COBOL is a procedural language designed for readable business rules,
+            fixed-width records, and long-lived data-processing systems. Its data
+            declarations carry meaning that Python variables do not, so this
+            transpiler preserves checks such as field width and numeric range in
+            the generated code.
+          </p>
+          <p>
+            This v0.2 subset handles free-format programs with PIC X and PIC 9
+            working storage, input and display, checked assignments and arithmetic,
+            compound conditions, and inline counted loops. Files, decimals,
+            copybooks, and procedure paragraphs are intentionally outside the
+            current language contract.
+          </p>
+          <p>
+            Translation runs locally in your browser through a staged lexer,
+            parser, typed syntax tree, semantic analyzer, and Python generator.
+            The page shows the generated Python but does not execute it: COBOL
+            programs can accept input and encode operational business behavior, so
+            execution is kept as a separate, explicit step.
+          </p>
+        </div>
       </section>
     </main>
 
-    <footer>
-      Free-format COBOL only · Files, decimals, and paragraphs are unsupported.
-    </footer>
+    <footer>A documented, deterministic COBOL-to-Python translation pipeline.</footer>
 
     <script id="examples" type="application/json">
       {
