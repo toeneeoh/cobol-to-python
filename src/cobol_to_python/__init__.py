@@ -8,6 +8,7 @@ from cobol_to_python.ast import (
     ComparisonOperator,
     ComputeStatement,
     DataDeclaration,
+    DataDivision,
     DisplayStatement,
     Expression,
     Identifier,
@@ -35,7 +36,12 @@ from cobol_to_python.lexer import (
     TokenKind,
     tokenize,
 )
-from cobol_to_python.parser import ParsedExpression, ParseError, parse_expression
+from cobol_to_python.parser import (
+    ParsedExpression,
+    ParseError,
+    parse_data_division,
+    parse_expression,
+)
 
 __all__ = [
     "ArithmeticExpression",
@@ -45,6 +51,7 @@ __all__ = [
     "ComparisonOperator",
     "ComputeStatement",
     "DataDeclaration",
+    "DataDivision",
     "DisplayStatement",
     "Expression",
     "Identifier",
@@ -70,6 +77,7 @@ __all__ = [
     "TokenKind",
     "UnaryExpression",
     "UnaryOperator",
+    "parse_data_division",
     "parse_expression",
     "tokenize",
 ]

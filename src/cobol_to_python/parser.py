@@ -1,4 +1,4 @@
-"""Recursive-descent parsing for standalone COBOL v0.1 expressions."""
+"""Recursive-descent parsing for focused COBOL v0.1 grammar fragments."""
 
 from dataclasses import replace
 from typing import TypeAlias
@@ -9,10 +9,16 @@ from cobol_to_python.ast import (
     BinaryExpression,
     Comparison,
     ComparisonOperator,
+    DataDeclaration,
+    DataDivision,
     Expression,
     Identifier,
     IdentifierExpression,
     IntegerLiteral,
+    Literal,
+    Pic9,
+    Picture,
+    PicX,
     StringLiteral,
     UnaryExpression,
     UnaryOperator,
@@ -23,7 +29,7 @@ ParsedExpression: TypeAlias = Expression | Comparison
 
 
 class ParseError(ValueError):
-    """An unexpected token encountered while parsing an expression."""
+    """An unexpected token encountered while parsing COBOL source."""
 
     def __init__(self, token: Token, expected: str) -> None:
         self.token = token
@@ -58,6 +64,9 @@ class _TokenCursor:
         if self.current.kind not in kinds:
             return None
         return self.advance()
+
+    def check(self, kind: TokenKind) -> bool:
+        return self.current.kind is kind
 
     def expect(self, kind: TokenKind, expected: str) -> Token:
         if self.current.kind is not kind:
@@ -178,6 +187,101 @@ class _ExpressionParser:
         self._cursor.expect(TokenKind.EOF, "end of input")
 
 
+class _DataDivisionParser:
+    def __init__(self, tokens: list[Token]) -> None:
+        self._cursor = _TokenCursor(tokens)
+
+    def parse(self) -> DataDivision:
+        start = self._cursor.expect(TokenKind.DATA, "'DATA'")
+        self._cursor.expect(TokenKind.DIVISION, "'DIVISION'")
+        self._cursor.expect(TokenKind.PERIOD, "'.' after DATA DIVISION")
+        self._cursor.expect(TokenKind.WORKING_STORAGE, "'WORKING-STORAGE'")
+        self._cursor.expect(TokenKind.SECTION, "'SECTION'")
+        section_period = self._cursor.expect(
+            TokenKind.PERIOD, "'.' after WORKING-STORAGE SECTION"
+        )
+
+        declarations: list[DataDeclaration] = []
+        while self._cursor.current.kind is TokenKind.INTEGER:
+            declarations.append(self._parse_declaration())
+
+        self._cursor.expect(TokenKind.EOF, "a level-01 declaration or end of input")
+        end = declarations[-1].span.end if declarations else section_period.span.end
+        return DataDivision(tuple(declarations), SourceSpan(start.span.start, end))
+
+    def _parse_declaration(self) -> DataDeclaration:
+        level = self._cursor.advance()
+        if level.lexeme != "01":
+            raise ParseError(level, "level number '01'")
+
+        name_token = self._cursor.expect(TokenKind.IDENTIFIER, "a data name")
+        name = Identifier(name_token.lexeme, name_token.span)
+        picture = self._parse_picture()
+
+        if self._cursor.check(TokenKind.PIC):
+            raise ParseError(
+                self._cursor.current,
+                "a VALUE clause or declaration-ending '.'; duplicate PIC clause",
+            )
+
+        initial_value: Literal | None = None
+        if self._cursor.match(TokenKind.VALUE) is not None:
+            initial_value = self._parse_literal()
+            if self._cursor.check(TokenKind.VALUE):
+                raise ParseError(
+                    self._cursor.current,
+                    "declaration-ending '.'; duplicate VALUE clause",
+                )
+            if self._cursor.check(TokenKind.PIC):
+                raise ParseError(
+                    self._cursor.current,
+                    "declaration-ending '.'; duplicate PIC clause",
+                )
+
+        period = self._cursor.expect(TokenKind.PERIOD, "declaration-ending '.'")
+        return DataDeclaration(
+            name,
+            picture,
+            initial_value,
+            SourceSpan(level.span.start, period.span.end),
+        )
+
+    def _parse_picture(self) -> Picture:
+        start = self._cursor.expect(TokenKind.PIC, "'PIC'")
+        picture_token = self._cursor.current
+        picture_type: type[PicX] | type[Pic9]
+        if picture_token.kind is TokenKind.X:
+            self._cursor.advance()
+            picture_type = PicX
+        elif picture_token.kind is TokenKind.INTEGER and picture_token.lexeme == "9":
+            self._cursor.advance()
+            picture_type = Pic9
+        else:
+            raise ParseError(picture_token, "picture type 'X' or '9'")
+
+        self._cursor.expect(TokenKind.LEFT_PAREN, "'(' after picture type")
+        length_token = self._cursor.expect(
+            TokenKind.INTEGER, "a positive picture length"
+        )
+        length = int(length_token.lexeme)
+        if length == 0:
+            raise ParseError(
+                length_token, "a positive picture length greater than zero"
+            )
+        closing = self._cursor.expect(TokenKind.RIGHT_PAREN, "')' after picture length")
+        return picture_type(length, SourceSpan(start.span.start, closing.span.end))
+
+    def _parse_literal(self) -> Literal:
+        token = self._cursor.current
+        if token.kind is TokenKind.INTEGER:
+            self._cursor.advance()
+            return IntegerLiteral(int(token.lexeme), token.span)
+        if token.kind is TokenKind.STRING:
+            self._cursor.advance()
+            return StringLiteral(_decode_string(token.lexeme), token.span)
+        raise ParseError(token, "an integer or string literal after VALUE")
+
+
 def _combined_span(left: SourceSpan, right: SourceSpan) -> SourceSpan:
     return SourceSpan(left.start, right.end)
 
@@ -196,3 +300,9 @@ def parse_expression(source: str) -> ParsedExpression:
     """Parse one standalone expression or comparison and require end of input."""
 
     return _ExpressionParser(tokenize(source)).parse()
+
+
+def parse_data_division(source: str) -> DataDivision:
+    """Parse one complete data division and require end of input."""
+
+    return _DataDivisionParser(tokenize(source)).parse()

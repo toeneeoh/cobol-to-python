@@ -128,6 +128,14 @@ class DataDeclaration:
 
 
 @dataclass(frozen=True, slots=True)
+class DataDivision:
+    """A complete data division containing ordered working-storage items."""
+
+    declarations: tuple[DataDeclaration, ...]
+    span: SourceSpan
+
+
+@dataclass(frozen=True, slots=True)
 class Comparison:
     """A comparison between two expressions."""
 
