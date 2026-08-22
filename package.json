@@ -1,0 +1,13 @@
+{
+  "name": "cobol-to-python-browser-smoke",
+  "private": true,
+  "scripts": {
+    "build:wheel": "python -m build --wheel",
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "serve:web": "python scripts/serve_web.py",
+    "test:pyodide": "node scripts/pyodide-smoke.mjs"
+  },
+  "devDependencies": {
+    "pyodide": "314.0.5"
+  }
+}

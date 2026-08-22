@@ -24,6 +24,8 @@ from cobol_to_python.ast import (
     Picture,
     PicX,
     ProcedureDivision,
+    Program,
+    ProgramIdentification,
     Statement,
     StopRun,
     StringLiteral,
@@ -213,8 +215,8 @@ class _ExpressionParser:
 
 
 class _DataDivisionParser:
-    def __init__(self, tokens: list[Token]) -> None:
-        self._cursor = _TokenCursor(tokens)
+    def __init__(self, cursor: _TokenCursor) -> None:
+        self._cursor = cursor
 
     def parse(self) -> DataDivision:
         start = self._cursor.expect(TokenKind.DATA, "'DATA'")
@@ -230,7 +232,6 @@ class _DataDivisionParser:
         while self._cursor.current.kind is TokenKind.INTEGER:
             declarations.append(self._parse_declaration())
 
-        self._cursor.expect(TokenKind.EOF, "a level-01 declaration or end of input")
         end = declarations[-1].span.end if declarations else section_period.span.end
         return DataDivision(tuple(declarations), SourceSpan(start.span.start, end))
 
@@ -316,8 +317,8 @@ _STATEMENT_STARTERS = (
 
 
 class _ProcedureDivisionParser:
-    def __init__(self, tokens: list[Token]) -> None:
-        self._cursor = _TokenCursor(tokens)
+    def __init__(self, cursor: _TokenCursor) -> None:
+        self._cursor = cursor
         self._expressions = _ExpressionParser(self._cursor)
 
     def parse(self) -> ProcedureDivision:
@@ -332,7 +333,6 @@ class _ProcedureDivisionParser:
             statements.append(self._parse_statement())
 
         stop_run = self._parse_stop_run()
-        self._cursor.expect(TokenKind.EOF, "end of input after STOP RUN.")
         return ProcedureDivision(
             tuple(statements),
             stop_run,
@@ -435,6 +435,39 @@ class _ProcedureDivisionParser:
         return StopRun(SourceSpan(start.span.start, period.span.end))
 
 
+class _ProgramParser:
+    def __init__(self, tokens: list[Token]) -> None:
+        self._cursor = _TokenCursor(tokens)
+
+    def parse(self) -> Program:
+        identification = self._parse_identification()
+        data_division = _DataDivisionParser(self._cursor).parse()
+        procedure_division = _ProcedureDivisionParser(self._cursor).parse()
+        self._cursor.expect(TokenKind.EOF, "end of input after the complete program")
+        return Program(
+            identification,
+            data_division,
+            procedure_division,
+            SourceSpan(identification.span.start, procedure_division.span.end),
+        )
+
+    def _parse_identification(self) -> ProgramIdentification:
+        start = self._cursor.expect(TokenKind.IDENTIFICATION, "'IDENTIFICATION'")
+        self._cursor.expect(TokenKind.DIVISION, "'DIVISION'")
+        self._cursor.expect(TokenKind.PERIOD, "'.' after IDENTIFICATION DIVISION")
+        self._cursor.expect(TokenKind.PROGRAM_ID, "'PROGRAM-ID'")
+        self._cursor.expect(TokenKind.PERIOD, "'.' after PROGRAM-ID")
+        name_token = self._cursor.expect(TokenKind.IDENTIFIER, "a program identifier")
+        name = Identifier(name_token.lexeme, name_token.span)
+        period = self._cursor.expect(
+            TokenKind.PERIOD, "'.' after the program identifier"
+        )
+        return ProgramIdentification(
+            name,
+            SourceSpan(start.span.start, period.span.end),
+        )
+
+
 def _combined_span(left: SourceSpan, right: SourceSpan) -> SourceSpan:
     return SourceSpan(left.start, right.end)
 
@@ -458,10 +491,22 @@ def parse_expression(source: str) -> ParsedExpression:
 def parse_data_division(source: str) -> DataDivision:
     """Parse one complete data division and require end of input."""
 
-    return _DataDivisionParser(tokenize(source)).parse()
+    cursor = _TokenCursor(tokenize(source))
+    division = _DataDivisionParser(cursor).parse()
+    cursor.expect(TokenKind.EOF, "a level-01 declaration or end of input")
+    return division
 
 
 def parse_procedure_division(source: str) -> ProcedureDivision:
     """Parse one complete procedure division and require end of input."""
 
-    return _ProcedureDivisionParser(tokenize(source)).parse()
+    cursor = _TokenCursor(tokenize(source))
+    division = _ProcedureDivisionParser(cursor).parse()
+    cursor.expect(TokenKind.EOF, "end of input after STOP RUN.")
+    return division
+
+
+def parse_program(source: str) -> Program:
+    """Parse one complete documented COBOL v0.1 program."""
+
+    return _ProgramParser(tokenize(source)).parse()

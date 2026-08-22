@@ -1,0 +1,112 @@
+name: Validate and deploy Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install Python development dependencies
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Install browser development dependencies
+        run: npm ci
+
+      - name: Run Python tests
+        run: pytest
+
+      - name: Run Ruff lint checks
+        run: ruff check .
+
+      - name: Run Ruff formatting checks
+        run: ruff format --check .
+
+      - name: Run mypy
+        run: mypy src
+
+      - name: Build Python wheel
+        run: python -m build --wheel
+
+      - name: Verify wheel in Pyodide
+        run: npm run test:pyodide
+
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check web/app.js
+          node --check web/pyodide-worker.js
+          node --check scripts/prepare-web.mjs
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install build
+          npm ci
+
+      - name: Build and prepare static site
+        run: |
+          python -m build --wheel
+          npm run prepare:web
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: web
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

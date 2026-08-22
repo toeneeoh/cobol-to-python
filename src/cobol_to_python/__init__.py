@@ -29,6 +29,8 @@ from cobol_to_python.ast import (
     UnaryExpression,
     UnaryOperator,
 )
+from cobol_to_python.compiler import transpile
+from cobol_to_python.generator import generate_python
 from cobol_to_python.lexer import (
     LexerError,
     SourceLocation,
@@ -43,15 +45,25 @@ from cobol_to_python.parser import (
     parse_data_division,
     parse_expression,
     parse_procedure_division,
+    parse_program,
+)
+from cobol_to_python.semantic import (
+    AnalyzedProgram,
+    DataCategory,
+    SemanticError,
+    Symbol,
+    analyze_program,
 )
 
 __all__ = [
     "ArithmeticExpression",
     "ArithmeticOperator",
+    "AnalyzedProgram",
     "BinaryExpression",
     "Comparison",
     "ComparisonOperator",
     "ComputeStatement",
+    "DataCategory",
     "DataDeclaration",
     "DataDivision",
     "DisplayStatement",
@@ -73,15 +85,21 @@ __all__ = [
     "ProcedureDivision",
     "SourceLocation",
     "SourceSpan",
+    "SemanticError",
     "Statement",
     "StopRun",
     "StringLiteral",
+    "Symbol",
     "Token",
     "TokenKind",
     "UnaryExpression",
     "UnaryOperator",
+    "analyze_program",
+    "generate_python",
     "parse_data_division",
     "parse_expression",
+    "parse_program",
     "parse_procedure_division",
     "tokenize",
+    "transpile",
 ]

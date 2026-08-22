@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Translate the documented COBOL v0.1 subset into readable Python."
+    />
+    <title>COBOL → Python Workbench</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to workspace</a>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="COBOL to Python home">
+        <span class="brand-mark" aria-hidden="true">C→P</span>
+        <span>COBOL to Python</span>
+      </a>
+      <span class="version">Subset v0.1</span>
+    </header>
+
+    <main id="workspace">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">In-browser transpiler</p>
+        <h1 id="page-title">Old syntax, clear output.</h1>
+        <p class="lede">
+          Explore a deliberately small COBOL subset and inspect the Python it
+          becomes. Your source stays in this browser.
+        </p>
+      </section>
+
+      <section class="workbench" aria-label="Transpiler workspace">
+        <div class="toolbar">
+          <div class="example-control">
+            <label for="example">Example program</label>
+            <select id="example">
+              <option value="minimal-display">Minimal display</option>
+              <option value="data-arithmetic">Data and arithmetic</option>
+              <option value="move-conditional">Move and conditional</option>
+              <option value="nested-conditionals">Nested conditionals</option>
+            </select>
+          </div>
+          <button id="transpile" class="primary-action" type="button" disabled>
+            Transpile
+          </button>
+        </div>
+
+        <div class="editor-grid">
+          <section class="editor-panel" aria-labelledby="source-heading">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Input</span>
+                <h2 id="source-heading">COBOL</h2>
+              </div>
+              <span class="format-label">FREE FORMAT</span>
+            </div>
+            <label class="visually-hidden" for="source">COBOL source</label>
+            <textarea
+              id="source"
+              aria-describedby="source-help"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            ></textarea>
+            <p id="source-help" class="panel-help">
+              Keywords are case-insensitive. Comments begin with <code>*&gt;</code>.
+            </p>
+          </section>
+
+          <section class="editor-panel output-panel" aria-labelledby="output-heading">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-kicker">Output</span>
+                <h2 id="output-heading">Python</h2>
+              </div>
+              <button id="copy" class="text-action" type="button" disabled>
+                Copy
+              </button>
+            </div>
+            <label class="visually-hidden" for="output">Generated Python</label>
+            <textarea
+              id="output"
+              readonly
+              spellcheck="false"
+              placeholder="Generated Python will appear here."
+            ></textarea>
+            <p class="panel-help">Deterministic output from the typed pipeline.</p>
+          </section>
+        </div>
+
+        <div
+          id="status"
+          class="status"
+          data-state="loading"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="status-message">Loading the Python engine…</span>
+        </div>
+      </section>
+
+      <section class="contract" aria-labelledby="contract-heading">
+        <div>
+          <p class="eyebrow">The v0.1 contract</p>
+          <h2 id="contract-heading">Small enough to understand.</h2>
+        </div>
+        <ul>
+          <li><strong>Data</strong> PIC X and PIC 9 working storage</li>
+          <li><strong>Flow</strong> IF / ELSE / END-IF</li>
+          <li><strong>Actions</strong> DISPLAY, MOVE, and COMPUTE</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      Free-format COBOL only · Files, decimals, paragraphs, and PERFORM are unsupported.
+    </footer>
+
+    <script id="examples" type="application/json">
+      {
+        "minimal-display": "IDENTIFICATION DIVISION.\nPROGRAM-ID. HELLO.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\nPROCEDURE DIVISION.\nDISPLAY \"Hello, world!\".\nSTOP RUN.",
+        "data-arithmetic": "IDENTIFICATION DIVISION.\nPROGRAM-ID. TOTALS.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 FIRST-NUMBER PIC 9(3) VALUE 12.\n01 SECOND-NUMBER PIC 9(3) VALUE 8.\n01 TOTAL PIC 9(4).\nPROCEDURE DIVISION.\nCOMPUTE TOTAL = FIRST-NUMBER + SECOND-NUMBER * 2.\nDISPLAY TOTAL.\nSTOP RUN.",
+        "move-conditional": "IDENTIFICATION DIVISION.\nPROGRAM-ID. GREETING.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 NAME PIC X(10) VALUE \"Ada\".\n01 COUNT PIC 9(2) VALUE 3.\nPROCEDURE DIVISION.\nIF COUNT >= 1\n    DISPLAY NAME.\nELSE\n    DISPLAY \"Nobody\".\nEND-IF.\nMOVE \"Grace\" TO NAME.\nDISPLAY NAME.\nSTOP RUN.",
+        "nested-conditionals": "IDENTIFICATION DIVISION.\nPROGRAM-ID. CLASSIFY.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 VALUE-A PIC 9(2) VALUE 5.\n01 VALUE-B PIC 9(2) VALUE 8.\nPROCEDURE DIVISION.\n*> Compare the two values.\nIF VALUE-A < VALUE-B\n    IF VALUE-A = 5\n        DISPLAY \"MATCH\".\n    ELSE\n        DISPLAY \"LOWER\".\n    END-IF.\nELSE\n    DISPLAY \"NOT-LOWER\".\nEND-IF.\nSTOP RUN."
+      }
+    </script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -215,7 +215,24 @@ class Program:
     """A complete COBOL v0.1 program."""
 
     identification: ProgramIdentification
-    declarations: tuple[DataDeclaration, ...]
-    statements: tuple[Statement, ...]
-    stop_run: StopRun
+    data_division: DataDivision
+    procedure_division: ProcedureDivision
     span: SourceSpan
+
+    @property
+    def declarations(self) -> tuple[DataDeclaration, ...]:
+        """Return working-storage declarations in source order."""
+
+        return self.data_division.declarations
+
+    @property
+    def statements(self) -> tuple[Statement, ...]:
+        """Return top-level procedure statements in source order."""
+
+        return self.procedure_division.statements
+
+    @property
+    def stop_run(self) -> StopRun:
+        """Return the program's mandatory final stop construct."""
+
+        return self.procedure_division.stop_run

@@ -9,6 +9,7 @@ from cobol_to_python import (
     ComparisonOperator,
     ComputeStatement,
     DataDeclaration,
+    DataDivision,
     DisplayStatement,
     Identifier,
     IdentifierExpression,
@@ -17,6 +18,7 @@ from cobol_to_python import (
     MoveStatement,
     Pic9,
     PicX,
+    ProcedureDivision,
     Program,
     ProgramIdentification,
     SourceLocation,
@@ -131,15 +133,13 @@ def test_complete_program_and_stop_run() -> None:
     declaration = DataDeclaration(name, PicX(10, span()), None, span())
     statement = DisplayStatement(IdentifierExpression(name, span()), span())
     stop_run = StopRun(span(90, 99))
-    program = Program(
-        identification,
-        (declaration,),
-        (statement,),
-        stop_run,
-        node_span,
-    )
+    data_division = DataDivision((declaration,), node_span)
+    procedure_division = ProcedureDivision((statement,), stop_run, node_span)
+    program = Program(identification, data_division, procedure_division, node_span)
 
     assert program.identification is identification
+    assert program.data_division is data_division
+    assert program.procedure_division is procedure_division
     assert program.declarations == (declaration,)
     assert program.statements == (statement,)
     assert program.stop_run is stop_run
